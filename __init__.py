@@ -5,13 +5,16 @@ from .nodes.model_downloader import (
     DownloadUNET,
     DownloadControlNet
 )
+from .nodes.simple_batch_downloader import (SimpleBatchDownloader,SimpleModelDownloader)
 
 NODE_CLASS_MAPPINGS = {
     "DownloadCheckpoint": DownloadCheckpoint,
     "DownloadLora": DownloadLora,
     "DownloadVAE": DownloadVAE,
     "DownloadUNET": DownloadUNET,
-    "DownloadControlNet": DownloadControlNet
+    "DownloadControlNet": DownloadControlNet,
+    "SimpleBatchDownloader": SimpleBatchDownloader,
+    "SimpleModelDownloader": SimpleModelDownloader
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -19,7 +22,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "DownloadLora": "(Down)load LoRA",
     "DownloadVAE": "(Down)load VAE",
     "DownloadUNET": "(Down)load UNET",
-    "DownloadControlNet": "(Down)load ControlNet"
+    "DownloadControlNet": "(Down)load ControlNet",
+    "SimpleBatchDownloader": "Simple Batch Downloader",
+    "SimpleModelDownloader": "Simple Model Downloader"
 }
 
 WEB_DIRECTORY = "./web"
