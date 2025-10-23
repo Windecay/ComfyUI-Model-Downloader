@@ -26,7 +26,6 @@ any_type = AlwaysEqualProxy("*")
 
 def is_trusted_url(url):
     """检查URL是否属于可信站点范围"""
-    # 定义可信站点的域名列表
     trusted_domains = [
         'huggingface.co',
         'hf-mirror.com',
@@ -43,18 +42,61 @@ def is_trusted_url(url):
 
         return False
     except Exception:
-        # URL解析失败时，默认为不可信
         return False
+
+def replace_domain(url, from_domain, to_domain):
+    """替换URL中的域名"""
+    try:
+        parsed_url = urlparse(url)
+        if parsed_url.netloc == from_domain or parsed_url.netloc.endswith(f'.{from_domain}'):
+            new_netloc = parsed_url.netloc.replace(from_domain, to_domain)
+            new_url = parsed_url._replace(netloc=new_netloc).geturl()
+            return new_url
+        return url
+    except Exception:
+        return url
 
 def download_file_with_temp(url, file_path, overwrite=False):
     """下载单个文件到指定路径，使用临时文件（共享函数）"""
     try:
-        # 首先验证URL是否在可信站点范围内
         if not is_trusted_url(url):
             error_msg = f"URL验证失败: {url} 不在可信站点范围内（目前支持的可信模型站点huggingface.co、hf-mirror.com、modelscope.cn）"
             print(error_msg)
             return False, error_msg
 
+        retry_mapping = {
+            'huggingface.co': 'hf-mirror.com',
+            'hf-mirror.com': 'huggingface.co'
+        }
+
+
+        success, message = attempt_download(url, file_path, overwrite)
+
+        if not success:
+            parsed_url = urlparse(url)
+            original_domain = None
+
+            for domain in retry_mapping.keys():
+                if parsed_url.netloc == domain or parsed_url.netloc.endswith(f'.{domain}'):
+                    original_domain = domain
+                    break
+
+            if original_domain and retry_mapping[original_domain] != original_domain:
+                retry_url = replace_domain(url, original_domain, retry_mapping[original_domain])
+                print(f"从原始URL下载失败，尝试使用替代URL: {retry_url}")
+
+                success, message = attempt_download(retry_url, file_path, overwrite)
+
+        return success, message
+
+    except Exception as e:
+        error_msg = f"下载过程中发生错误: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+
+def attempt_download(url, file_path, overwrite=False):
+    """尝试执行单次下载"""
+    try:
         if os.path.exists(file_path):
             if not overwrite:
                 print(f"文件已存在，跳过下载: {file_path}")
@@ -102,6 +144,8 @@ def download_file_with_temp(url, file_path, overwrite=False):
             print(f"下载完成: {file_path}")
             return True, f"下载完成: {file_path}"
 
+        return False, "下载完成但文件不存在"
+
     except Exception as e:
         if os.path.exists(partial_file_path):
             try:
@@ -126,7 +170,7 @@ class SimpleBatchDownloader:
                 "url5": ("STRING", {"default": "", "multiline": False}),
                 "model_folder": ("STRING", {"default": "checkpoints", "multiline": False}),
                 "run_download": ("BOOLEAN", {"default": True}),
-                "overwrite_existing": ("BOOLEAN", {"default": False}),  # 新增选项，默认为False
+                "overwrite_existing": ("BOOLEAN", {"default": False}),
             },
             "optional": {
                 "anything": (any_type, {})
@@ -184,7 +228,7 @@ class SimpleModelDownloader:
                 "model_url": ("STRING", {"default": "", "multiline": False}),
                 "model_folder": ("STRING", {"default": "checkpoints", "multiline": False}),
                 "run_download": ("BOOLEAN", {"default": True}),
-                "overwrite_existing": ("BOOLEAN", {"default": False}),  # 新增选项，默认为False
+                "overwrite_existing": ("BOOLEAN", {"default": False}),
             },
             "optional": {
                 "anything": (any_type, {})
