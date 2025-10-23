@@ -8,6 +8,7 @@ from comfy_execution.graph import ExecutionBlocker
 import threading
 import folder_paths
 from tqdm import tqdm
+from urllib.parse import urlparse
 
 class AnyType(str):
     def __ne__(self, __value: object) -> bool:
@@ -23,9 +24,37 @@ class AlwaysEqualProxy(str):
         return False
 any_type = AlwaysEqualProxy("*")
 
+def is_trusted_url(url):
+    """检查URL是否属于可信站点范围"""
+    # 定义可信站点的域名列表
+    trusted_domains = [
+        'huggingface.co',
+        'hf-mirror.com',
+        'modelscope.cn'
+    ]
+
+    try:
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+
+        for trusted_domain in trusted_domains:
+            if domain == trusted_domain or domain.endswith(f'.{trusted_domain}'):
+                return True
+
+        return False
+    except Exception:
+        # URL解析失败时，默认为不可信
+        return False
+
 def download_file_with_temp(url, file_path, overwrite=False):
     """下载单个文件到指定路径，使用临时文件（共享函数）"""
     try:
+        # 首先验证URL是否在可信站点范围内
+        if not is_trusted_url(url):
+            error_msg = f"URL验证失败: {url} 不在可信站点范围内（目前支持的可信模型站点huggingface.co、hf-mirror.com、modelscope.cn）"
+            print(error_msg)
+            return False, error_msg
+
         if os.path.exists(file_path):
             if not overwrite:
                 print(f"文件已存在，跳过下载: {file_path}")
